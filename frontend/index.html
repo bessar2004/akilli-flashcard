@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Akıllı Flashcard Üretici - Yapay zeka destekli ders çalışma asistanı. PDF ve metinlerden otomatik bilgi kartları oluşturun.">
+  <meta name="author" content="Smart Flashcard Team">
+  <title>Smart Flashcard — Akıllı Bilgi Kartı Üretici</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="logo">
+      <img src="/static/logo.png" alt="Smart Flashcard Logo" class="logo-img" />
+      Smart Flashcard
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.8rem;">
+      <button id="theme-toggle" class="act-btn" style="width: 34px; height: 34px; font-size: 1rem; opacity: 1;" title="Tema Değiştir"></button>
+      <div class="llm-badge llm-off" id="llm-badge">
+        <span id="llm-text">⚙️ Bağlanıyor...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TAB NAV
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="upload">📤 Yükle &amp; Üret</button>
+    <button class="tab-btn"        data-tab="cards">🃏 Kartlarım</button>
+    <button class="tab-btn"        data-tab="study">📖 Çalış</button>
+    <button class="tab-btn"        data-tab="quiz">📝 Sınav</button>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PANEL 1 — YÜKLE & ÜRET
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <section id="panel-upload" class="tab-panel active">
+    <h2 class="section-title">Ders Notunu Yükle veya Yaz</h2>
+    <p class="section-sub">Bir dosya yükle ya da metin alanına yaz — sistem otomatik bilgi kartları üretir.</p>
+
+    <div class="upload-grid">
+
+      <!-- Dosya yükleme -->
+      <div class="panel-box">
+        <h3>📎 Dosya Yükle (PDF / DOCX / TXT)</h3>
+        <div class="drop-zone" id="drop-zone" role="button" aria-label="Dosya yükle">
+          <div class="drop-icon">☁️</div>
+          <div class="drop-label">Sürükleyip bırak veya tıkla</div>
+          <div class="drop-hint">PDF, DOCX, TXT — maks. 50 MB</div>
+        </div>
+        <p class="source-status" id="source-status">Henüz dosya seçilmedi.</p>
+        <input type="file" id="file-input" accept=".pdf,.docx,.txt" hidden />
+      </div>
+
+      <!-- Metin girişi -->
+      <div class="panel-box">
+        <h3>✏️ Metin Gir</h3>
+        <textarea
+          id="text-input"
+          placeholder="Ders notunu buraya yapıştır veya yaz (en az 20 karakter)..."
+          aria-label="Ders notu metin alanı"
+        ></textarea>
+      </div>
+
+    </div><!-- /upload-grid -->
+
+    <!-- Seçenekler -->
+    <div class="options-row">
+      <div class="input-group">
+        <label for="title-input">Başlık (opsiyonel)</label>
+        <input type="text" id="title-input" placeholder="ör: Biyoloji 101" />
+      </div>
+
+      <div class="slider-group">
+        <label for="max-cards">Kart sayısı: <strong id="max-cards-label">15</strong></label>
+        <input type="range" id="max-cards" min="5" max="50" value="15" step="5" />
+      </div>
+
+      <div class="checkbox-group">
+        <label class="chk-label">
+          <input type="checkbox" id="chk-qa" checked disabled />
+          Bilgi Kartı (Soru-Cevap)
+        </label>
+        <div style="display:none;">
+          <input type="checkbox" id="chk-mcq" />
+        </div>
+      </div>
+    </div>
+
+    <button class="generate-btn" id="generate-btn">✨ Flashcard Üret</button>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PANEL 2 — KARTLARIM
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <section id="panel-cards" class="tab-panel">
+
+    <div class="cards-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+      <div class="filter-row">
+        <button class="filter-btn active" data-filter="all">Tümü</button>
+        <button class="filter-btn" data-filter="easy">🟢 Kolay</button>
+        <button class="filter-btn" data-filter="medium">🟡 Orta</button>
+        <button class="filter-btn" data-filter="hard">🔴 Zor</button>
+        <button class="filter-btn" data-filter="qa">QA</button>
+        <button class="filter-btn" data-filter="mcq">MCQ</button>
+      </div>
+
+      <div class="export-row" style="display: flex; gap: 0.5rem;">
+        <button id="export-anki" class="act-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Anki'ye Aktar (.txt)">🗃️ Anki</button>
+      </div>
+
+    </div>
+      <span class="card-count" id="card-count">0 kart</span>
+    </div>
+
+    <!-- Boş durum -->
+    <div class="empty-state" id="empty-state">
+      <span class="empty-icon">🃏</span>
+      <p>Henüz kart yok.<br/>İlk sekmeye gidip ders notunu yükle.</p>
+    </div>
+
+    <!-- Kart ızgarası -->
+    <div class="cards-grid" id="cards-grid"></div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PANEL 3 — ÇALIŞ
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <section id="panel-study" class="tab-panel">
+    <h2 class="section-title">Çalışma Modu</h2>
+    <p class="section-sub">Kartlara cevap ver, sisteme doğru/yanlış bildir.</p>
+
+    <div class="study-layout">
+
+      <!-- Büyük çalışma kartı -->
+      <div class="study-card-wrap">
+        <div class="study-card" id="study-card">
+
+          <!-- Ön yüz: Soru -->
+          <div class="study-face study-front">
+            <div id="study-question">Kart bulunamadı. Önce kart oluşturun.</div>
+            <div id="study-options"></div>
+            <div style="margin-top:auto;font-size:.75rem;color:var(--text-muted);text-align:center;">
+              ↻ Cevap için tıkla
+            </div>
+          </div>
+
+          <!-- Arka yüz: Cevap -->
+          <div class="study-face study-back">
+            <div style="font-size:.8rem;color:var(--accent2);font-weight:600;">✅ Cevap</div>
+            <div id="study-answer" style="font-size:.95rem;color:#c4b5fd;line-height:1.6;"></div>
+            <div style="margin-top:auto;font-size:.75rem;color:var(--text-muted);text-align:center;">
+              ↻ Soruya dön
+            </div>
+          </div>
+
+          <!-- BİTİŞ EKRANI (Başlangıçta Gizli) -->
+          <div id="study-finish" class="study-finish-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:var(--bg-card); z-index:10; border-radius:var(--radius-lg); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem;">
+            <div class="study-finish-content">
+              <h3 style="font-size: 2rem; margin-bottom: 1rem;">🎉 Tebrikler!</h3>
+              <p style="color: var(--text-muted); margin-bottom: 2rem;">Bugünkü tüm tekrarlarını tamamladın.</p>
+              <button class="act-btn" onclick="window.loadStudyCards(false)">Yine de Hepsini Çalış</button>
+            </div>
+          </div>
+
+        </div><!-- /study-card -->
+      </div>
+
+      <!-- Kenar çubuğu -->
+      <aside class="study-sidebar">
+        <h3>📊 İlerleme</h3>
+        <div class="study-progress-wrap">
+          <div id="study-progress">— / —</div>
+          <div id="study-score">Henüz cevap verilmedi</div>
+        </div>
+
+        <div class="nav-btns">
+          <button class="nav-btn" id="btn-prev">◀ Önceki</button>
+          <button class="nav-btn" id="btn-next">Sonraki ▶</button>
+        </div>
+
+        <div class="grade-btns">
+          <button class="grade-btn btn-correct" id="btn-correct">✅ Doğru</button>
+          <button class="grade-btn btn-wrong"   id="btn-wrong">❌ Yanlış</button>
+        </div>
+
+        <p class="study-tip">
+          Kartı gör → cevapla → doğru/yanlış işaretle.<br/>
+          İstatistikler anında güncellenir.
+        </p>
+      </aside>
+
+    </div><!-- /study-layout -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PANEL 4 — SINAV (QUIZ)
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <section id="panel-quiz" class="tab-panel">
+    
+    <!-- Sınav Kurulum Ekranı -->
+    <div id="quiz-setup">
+      <h2 class="section-title">Sınav Modu</h2>
+      <p class="section-sub">Ürettiğin kartlardan kendini test et.</p>
+      
+      <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Çalışılacak Doküman</label>
+          <select id="quiz-doc-id" style="width:100%; padding: 0.6rem; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
+            <option value="">Tüm Kayıtlı Kartlar (Karışık)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Soru Sayısı</label>
+          <input type="number" id="quiz-count" value="10" min="3" max="50" style="width:100%; padding: 0.6rem; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text);"/>
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Zorluk (İsteğe bağlı)</label>
+          <select id="quiz-diff">
+            <option value="">Hepsi</option>
+            <option value="easy">Kolay</option>
+            <option value="medium">Orta</option>
+            <option value="hard">Zor</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label>Soru Tipi</label>
+          <select id="quiz-type">
+            <option value="">Karışık</option>
+            <option value="qa">Sadece Klasik Soru (QA)</option>
+            <option value="mcq">Sadece Çoktan Seçmeli (MCQ)</option>
+          </select>
+        </div>
+        
+        <p id="quiz-setup-error" style="color:var(--red); font-size: 0.85rem; margin-bottom: 1rem;"></p>
+        <button id="quiz-start-btn" class="generate-btn">🚀 Sınavı Başlat</button>
+      </div>
+    </div><!-- /quiz-setup -->
+
+    <!-- Sınav Soru Ekranı -->
+    <div id="quiz-question-screen" class="hidden">
+      <div style="max-width: 700px; margin: 0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+          <div id="quiz-q-progress" style="font-weight: 600; font-size:1.1rem;">Soru 1 / 10</div>
+          <div style="display:flex; gap: 0.5rem;">
+            <span id="quiz-q-difficulty" class="badge">Orta</span>
+            <span id="quiz-q-type" class="badge">QA</span>
+          </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div style="width:100%; background:var(--surface2); border-radius:10px; height:8px; margin-bottom:2rem; overflow:hidden;">
+          <div id="quiz-progress-bar" style="height:100%; width:0%; background:var(--accent); transition: width 0.3s ease;"></div>
+        </div>
+
+        <div class="panel-box" style="margin-bottom: 2rem;">
+          <h3 id="quiz-q-text" style="font-size: 1.2rem; margin-bottom: 1.5rem; line-height: 1.5;">Soru Metni</h3>
+          
+          <div id="quiz-mcq-opts" class="hidden" style="display: flex; flex-direction: column; gap: 0.8rem;">
+            <!-- MCQ Seçenekleri buraya js ile eklenecek -->
+          </div>
+          
+          <textarea id="quiz-qa-input" class="hidden" rows="4" placeholder="Cevabınızı buraya yazın..."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: space-between;">
+          <button id="quiz-btn-prev" class="btn-secondary" style="width: 120px;">◀ Önceki</button>
+          <button id="quiz-btn-next" class="btn-primary" style="width: 120px;">Sonraki ▶</button>
+          <button id="quiz-btn-submit" class="generate-btn hidden" style="width: 180px;">✅ Sınavı Bitir</button>
+        </div>
+      </div>
+    </div><!-- /quiz-question-screen -->
+
+    <!-- Sınav Sonuç Özeti Ekranı -->
+    <div id="quiz-result-screen" class="hidden">
+      <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+        <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">Sınav Sonucu</h2>
+        
+        <div class="panel-box" style="margin: 2rem 0; padding: 2.5rem;">
+          <div style="font-size: 4rem; font-weight: 800; line-height: 1;" id="quiz-res-score">100%</div>
+          <div style="font-size: 2rem; font-weight: 700; margin-bottom: 1rem;" id="quiz-res-grade">A</div>
+          
+          <div style="width:100%; background:var(--surface2); border-radius:10px; height:12px; margin-bottom:1.5rem; overflow:hidden;">
+            <div id="quiz-res-bar" style="height:100%; width:0%; background:var(--accent); transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+          </div>
+          
+          <p style="color:var(--text-muted); font-size:1.1rem; margin-bottom: 2rem;">
+            <span id="quiz-res-correct" style="color:var(--green); font-weight:bold;">8</span> doğru / 
+            <span id="quiz-res-total">10</span> soru
+          </p>
+
+          <button id="quiz-btn-show-details" class="btn-secondary" style="padding: 0.8rem 2rem;">Detayları Gör</button>
+        </div>
+
+        <button id="quiz-btn-retry" class="btn-primary" style="padding: 1rem 3rem;">Tekrar Sınav Ol</button>
+      </div>
+    </div><!-- /quiz-result-screen -->
+
+    <!-- Sınav Step-by-Step Detay Ekranı -->
+    <div id="quiz-step-details-screen" class="hidden">
+      <div style="max-width: 700px; margin: 0 auto;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+          <div id="quiz-detail-progress" style="font-weight: 600; font-size:1.1rem;">Detay 1 / 10</div>
+          <button id="quiz-btn-back-to-summary" class="btn-secondary" style="padding: 0.4rem 1rem;">Geri Dön</button>
+        </div>
+
+        <div id="quiz-detail-card" class="panel-box" style="margin-bottom: 2rem; position: relative;">
+          <!-- Detay içeriği JS ile doldurulacak -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button id="quiz-detail-btn-prev" class="btn-secondary" style="width: 120px;">◀ Önceki</button>
+          
+          <div id="quiz-detail-actions-end" class="hidden" style="display:flex; gap: 1rem;">
+            <button id="quiz-detail-btn-back" class="btn-secondary">Sonuçlara Dön</button>
+            <button id="quiz-detail-btn-retry" class="btn-primary">Tekrar Sınav Ol</button>
+          </div>
+
+          <button id="quiz-detail-btn-next" class="btn-primary" style="width: 120px;">Sonraki ▶</button>
+        </div>
+        
+      </div>
+    </div><!-- /quiz-step-details-screen -->
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       DÜZENLEME MODALI
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" aria-label="Kart düzenle">
+    <div class="modal-box">
+      <h2>✏️ Kartı Düzenle</h2>
+
+      <div class="form-group">
+        <label for="edit-question">Soru</label>
+        <textarea id="edit-question" rows="4"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-answer">Cevap</label>
+        <textarea id="edit-answer" rows="4"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-difficulty">Zorluk</label>
+        <select id="edit-difficulty">
+          <option value="easy">🟢 Kolay</option>
+          <option value="medium" selected>🟡 Orta</option>
+          <option value="hard">🔴 Zor</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="edit-close">İptal</button>
+        <button class="btn-primary"   id="edit-save">💾 Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TOAST BİLDİRİMİ
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ES-module olarak yükle -->
+  <script type="module" src="/static/js/app.js"></script>
+
+</body>
+</html>
