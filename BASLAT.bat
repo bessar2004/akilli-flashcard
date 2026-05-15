@@ -5,14 +5,21 @@ echo ============================
 echo Ortam kontrol ediliyor...
 echo ============================
 
-IF NOT EXIST .venv (
-    echo .venv bulunamadi, kurulum baslatiliyor...
+IF NOT EXIST .venv\Scripts\python.exe (
+    echo .venv bulunamadi veya eksik, kurulum baslatiliyor...
+    call kurulum.bat
+)
+
+.venv\Scripts\python.exe --version >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo .venv bozuk gorunuyor, yeniden kuruluyor...
+    rmdir /s /q .venv
     call kurulum.bat
 )
 
 echo .
 echo Ortam aktif ediliyor...
-call .venv\Scripts\activate
+call .venv\Scripts\activate.bat
 
 echo .
 echo Backend baslatiliyor...
