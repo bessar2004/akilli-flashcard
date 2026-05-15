@@ -3,20 +3,48 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+.venv*/
+venv/
+env/
+
+# Local environment
 .env
- 
+.env.*
+!.env.example
+
 # Database
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
 
 # Uploads
 uploads/*
 !uploads/.gitkeep
 
+# Generated exports and local data
+exports/
+*.apkg
+*.log
+*.tmp
+*.bak
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+dist/
+build/
+*.egg-info/
+
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # VS Code / IDE
 .vscode/

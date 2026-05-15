@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # ── Uygulama ─────────────────────────────────────────────
     APP_NAME: str = "Smart Flashcard API"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
     # ── Veritabanı ────────────────────────────────────────────
     # SQLite dosyası proje kökünde oluşturulur
@@ -34,7 +34,12 @@ class Settings(BaseSettings):
     TOP_SENTENCES: int = 20             # Değerlendirilecek cümle sayısı
 
     # ── CORS ──────────────────────────────────────────────────
-    CORS_ORIGINS: list[str] = ["*"]     # Production'da spesifik originler ekle
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
 
     # ── Auto-Cleanup (Otomatik Temizlik) ─────────────────────────────────────
     AUTO_CLEANUP_ENABLED: bool = True
@@ -42,7 +47,7 @@ class Settings(BaseSettings):
     # ─────────────────────────────────────────────────────────────────────────
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
     )

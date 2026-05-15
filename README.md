@@ -181,7 +181,7 @@ smart-flashcard/
 
 ## Ayarlar
 
-Varsayılan ayarlar `backend/config.py` içindedir. `.env` dosyasıyla aynı alanları ezebilirsiniz.
+Varsayılan ayarlar `backend/config.py` içindedir. `.env.example` dosyasını örnek alarak proje kökünde `.env` oluşturabilir ve aynı alanları ezebilirsiniz.
 
 Öne çıkan ayarlar:
 
@@ -194,6 +194,8 @@ Varsayılan ayarlar `backend/config.py` içindedir. `.env` dosyasıyla aynı ala
 - `AUTO_CLEANUP_HOURS`: temizlik aralığı
 
 Ollama modelini değiştirmek için `backend/llm/ollama_client.py` içindeki `DEFAULT_MODEL` değerini güncelleyin.
+
+Not: `flashcards.db*`, `.env`, sanal ortam ve `uploads/` içindeki kullanıcı dosyaları `.gitignore` kapsamındadır; GitHub'a gönderilmemelidir.
 
 ## Anki Dışa Aktarma
 

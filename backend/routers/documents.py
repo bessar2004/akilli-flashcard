@@ -10,15 +10,15 @@ GET  /api/documents/{id}  — Tek doküman getir (kartları dahil)
 DELETE /api/documents/{id} — Dokümanı sil
 """
 
-import shutil
+import re
 from pathlib import Path
-from datetime import datetime
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models   import Document, Flashcard
+from models   import Document
 from schemas  import (
     DocumentTextCreate, DocumentResponse, DocumentSummary, MessageResponse
 )
@@ -31,6 +31,9 @@ from data_processing.text_cleaner import clean_text
 
 router = APIRouter()
 
+_CHUNK_SIZE = 1024 * 1024
+_SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
+
 
 # ── Yardımcı ──────────────────────────────────────────────────────────────────
 
@@ -38,12 +41,49 @@ def _get_extension(filename: str) -> str:
     return Path(filename).suffix.lstrip(".").lower()
 
 
-def _save_upload(upload_file: UploadFile) -> Path:
-    """Yüklenen dosyayı uploads/ klasörüne kaydeder, Path döndürür."""
-    dest = settings.UPLOAD_DIR / upload_file.filename
+def _safe_original_name(filename: str | None) -> str:
+    name = Path(filename or "upload").name.strip()
+    return name or "upload"
+
+
+def _build_stored_filename(filename: str) -> str:
+    original = _safe_original_name(filename)
+    ext = _get_extension(original)
+    stem = Path(original).stem[:80] or "upload"
+    safe_stem = _SAFE_FILENAME_PATTERN.sub("_", stem).strip("._") or "upload"
+    suffix = f".{ext}" if ext else ""
+    return f"{safe_stem}_{uuid4().hex[:12]}{suffix}"
+
+
+def _save_upload(upload_file: UploadFile, stored_filename: str) -> Path:
+    upload_dir = settings.UPLOAD_DIR.resolve()
+    dest = (upload_dir / stored_filename).resolve()
+    if upload_dir not in dest.parents:
+        raise HTTPException(status_code=400, detail="Geçersiz dosya adı.")
+
+    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    written = 0
     with dest.open("wb") as f:
-        shutil.copyfileobj(upload_file.file, f)
+        while True:
+            chunk = upload_file.file.read(_CHUNK_SIZE)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > max_bytes:
+                dest.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"Dosya çok büyük. Maksimum boyut: {settings.MAX_FILE_SIZE_MB} MB.",
+                )
+            f.write(chunk)
     return dest
+
+
+def _delete_uploaded_file(filename: str) -> None:
+    upload_dir = settings.UPLOAD_DIR.resolve()
+    file_path = (upload_dir / Path(filename).name).resolve()
+    if upload_dir in file_path.parents:
+        file_path.unlink(missing_ok=True)
 
 
 # ── POST /api/upload ──────────────────────────────────────────────────────────
@@ -58,7 +98,8 @@ async def upload_document(
     title: str = Form(default="", description="Belge başlığı (opsiyonel)"),
     db: Session = Depends(get_db),
 ):
-    ext = _get_extension(file.filename)
+    original_filename = _safe_original_name(file.filename)
+    ext = _get_extension(original_filename)
     if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -66,7 +107,8 @@ async def upload_document(
         )
 
     # Dosyayı kaydet
-    saved_path = _save_upload(file)
+    stored_filename = _build_stored_filename(original_filename)
+    saved_path = _save_upload(file, stored_filename)
 
     # Metni çıkar
     try:
@@ -92,9 +134,9 @@ async def upload_document(
 
     # Veritabanına kaydet
     doc = Document(
-        title=title or file.filename,
+        title=title or original_filename,
         source_type=source_type,
-        filename=file.filename,
+        filename=stored_filename,
         raw_text=raw_text,
         clean_text=cleaned,
     )
@@ -168,8 +210,7 @@ def delete_document(document_id: int, db: Session = Depends(get_db)):
 
     # Yükleme dosyasını da sil (varsa)
     if doc.filename:
-        file_path = settings.UPLOAD_DIR / doc.filename
-        file_path.unlink(missing_ok=True)
+        _delete_uploaded_file(doc.filename)
 
     db.delete(doc)
     db.commit()
